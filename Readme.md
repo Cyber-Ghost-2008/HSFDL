@@ -16,7 +16,7 @@ How To Install?
  
                      python3 setup.py
 
-4. Start downloader
+4. Start downloader.
 
                      python3 dl.py
 
