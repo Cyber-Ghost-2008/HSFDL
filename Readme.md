@@ -20,6 +20,6 @@ How To Install?
 
                      python3 dl.py
 
-5. If not working, try 
+5. If not working, try this;
 
                      python dl.py
