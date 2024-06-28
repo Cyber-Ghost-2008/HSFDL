@@ -1,0 +1,5 @@
+youtube-dl
+yt-dlp
+tqdm
+rich
+
