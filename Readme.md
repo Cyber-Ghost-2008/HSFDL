@@ -19,29 +19,29 @@
                                               ♥ *      HIGH SPEED FILE DOWNLOADER    * ♥
                                               ♥ *                                    * ♥
                                               ♥ ************************************** ♥
-
+                                              
 How To Install?
 
 1. clone GitHub repo.
 
-                     git clone https://github.com/Cyber-Ghost-2008/HSFDL
+       git clone https://github.com/Cyber-Ghost-2008/HSFDL
 
 2. Navigate to folder HSFDL. 
 
-                     cd HSFDL
+       cd HSFDL
 
 3. Install Requirements
 
-                     pip3 install -r requirements.txt
+       pip3 install -r requirements.txt
 
 4. If any error occurred,
  
-                     python3 setup.py
+       python3 setup.py
 
 4. Start downloader.
 
-                     python3 dl.py
+       python3 dl.py
 
 5. If not working, try this;
 
-                     python dl.py
+       python dl.py
