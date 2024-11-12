@@ -29,12 +29,13 @@ How To Install?
 
 3. Install Requirements
 
+       pip3 install -r requirements.txt
        python3 setup.py
 
-4. Start downloader.
+5. Start downloader.
 
        python3 dl.py
 
-5. If not working, try this;
+6. If not working, try this;
 
        python dl.py
