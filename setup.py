@@ -1,109 +1,91 @@
 import os
-import subprocess
 import sys
-import shutil
+import subprocess
+import platform
+import urllib.request
 import zipfile
-import requests
+import tarfile
+import shutil
 
-def install_dependencies():
-    print("Installing dependencies...")
+# Define the required packages for main.py
+REQUIRED_PACKAGES = ["yt-dlp", "tqdm"]
+
+# Detect if running on Termux
+def is_termux():
+    return "com.termux" in os.getenv("PREFIX", "")
+
+# Download and install ffmpeg if not present
+def install_ffmpeg():
     try:
-        import pip
-    except ImportError:
-        print("Pip not found. Installing pip...")
-        subprocess.check_call([sys.executable, "-m", "ensurepip", "--upgrade"])
-        import pip
-    
-    print("Installing dependencies from requirements.txt...")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "-r", "requirements.txt"])
-        print("Dependencies installed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install dependencies: {e}")
-        sys.exit(1)
+        subprocess.run(['ffmpeg', '-version'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print("ffmpeg is already installed.")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("ffmpeg not found. Installing ffmpeg...")
 
-def download_ffmpeg_windows():
-    print("Downloading ffmpeg for Windows... Please Wait Few Minuts...")
-    url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-    ffmpeg_zip_path = os.path.join(os.getenv('TEMP'), 'ffmpeg.zip')
-    ffmpeg_extract_path = os.path.join(os.getenv('TEMP'), 'ffmpeg')
+        system = platform.system().lower()
+        ffmpeg_url = None
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        with open(ffmpeg_zip_path, 'wb') as file:
-            file.write(response.content)
-        print("ffmpeg downloaded successfully.")
-    except requests.RequestException as e:
-        print(f"Failed to download ffmpeg: {e}")
-        sys.exit(1)
+        if is_termux():
+            # Use Termux's package manager for ffmpeg
+            subprocess.run(['pkg', 'install', '-y', 'ffmpeg'], check=True)
+            print("ffmpeg installed via Termux's package manager.")
+        elif system == "darwin":  # macOS
+            try:
+                subprocess.run(['brew', 'install', 'ffmpeg'], check=True)
+                print("ffmpeg installed via Homebrew.")
+            except FileNotFoundError:
+                print("Homebrew not found. Please install Homebrew or install ffmpeg manually.")
+                sys.exit(1)
+        elif system == "windows":
+            ffmpeg_url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+            ffmpeg_zip = "ffmpeg-release-essentials.zip"
+            urllib.request.urlretrieve(ffmpeg_url, ffmpeg_zip)
 
-    try:
-        with zipfile.ZipFile(ffmpeg_zip_path, 'r') as zip_ref:
-            zip_ref.extractall(ffmpeg_extract_path)
-        print("ffmpeg extracted successfully.")
-    except zipfile.BadZipFile as e:
-        print(f"Failed to extract ffmpeg: {e}")
-        sys.exit(1)
+            # Extract to Program Files or a directory in PATH
+            extract_path = os.path.join("C:\\", "ffmpeg")
+            if not os.path.exists(extract_path):
+                os.makedirs(extract_path)
+            with zipfile.ZipFile(ffmpeg_zip, 'r') as zip_ref:
+                zip_ref.extractall(extract_path)
+            os.remove(ffmpeg_zip)
 
-    for root, dirs, files in os.walk(ffmpeg_extract_path):
-        if 'ffmpeg.exe' in files:
-            return os.path.join(root, 'ffmpeg.exe')
+            # Add to PATH
+            ffmpeg_bin_path = os.path.join(extract_path, "bin")
+            if ffmpeg_bin_path not in os.environ["PATH"]:
+                os.environ["PATH"] += os.pathsep + ffmpeg_bin_path
+                print(f"ffmpeg installed to {ffmpeg_bin_path} and added to PATH.")
 
-    return None
+        elif system == "linux":
+            ffmpeg_url = "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-i686-static.tar.xz"
+            ffmpeg_archive = "ffmpeg.tar.xz"
+            urllib.request.urlretrieve(ffmpeg_url, ffmpeg_archive)
 
-def download_ffmpeg_linux():
-    print("Installing ffmpeg for Linux...")
-    try:
-        subprocess.check_call(['sudo', 'apt', 'install', '-y', 'ffmpeg'])
-        print("ffmpeg installed successfully.")
-        return shutil.which('ffmpeg')
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install ffmpeg: {e}")
-        return None
+            # Extract and move to /usr/local/bin
+            extract_path = "/usr/local/bin"
+            with tarfile.open(ffmpeg_archive, 'r:xz') as tar_ref:
+                tar_ref.extractall(extract_path)
+            os.remove(ffmpeg_archive)
+            print("ffmpeg installed and added to PATH.")
+        else:
+            print("Unsupported OS. Please install ffmpeg manually.")
+            sys.exit(1)
 
-def download_ffmpeg_mac():
-    print("Installing ffmpeg for macOS...")
-    try:
-        subprocess.check_call(['/bin/bash', '-c', '$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)'])
-        subprocess.check_call(['brew', 'install', 'ffmpeg'])
-        print("ffmpeg installed successfully.")
-        return shutil.which('ffmpeg')
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install ffmpeg: {e}")
-        return None
+# Install Python dependencies
+def install_requirements():
+    print("Installing Python requirements...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])  # Update pip first
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *REQUIRED_PACKAGES])
 
-def copy_to_paths(ffmpeg_path):
-    print("Copying ffmpeg to system paths...")
-    paths = [
-        os.path.join(os.getenv('SystemRoot'), 'System32'),
-        os.path.join(os.getenv('SystemRoot'), 'SysWOW64'),
-        os.path.join(os.getenv('USERPROFILE'), 'AppData', 'Local', 'Microsoft', 'WindowsApps')
-    ]
+def main():
+    print("Setting up the environment for main.py...")
 
-    for path in paths:
-        try:
-            shutil.copy(ffmpeg_path, path)
-            print(f"Copied ffmpeg to {path}")
-        except Exception as e:
-            print(f"Failed to copy ffmpeg to {path}: {e}")
+    # Check and install ffmpeg if necessary
+    install_ffmpeg()
+
+    # Install required Python packages
+    install_requirements()
+
+    print("Setup complete. You can now run main.py.")
 
 if __name__ == "__main__":
-    install_dependencies()
-    
-    ffmpeg_path = None
-    if sys.platform.startswith('win'):
-        ffmpeg_path = download_ffmpeg_windows()
-        if ffmpeg_path:
-            copy_to_paths(ffmpeg_path)
-        else:
-            print("Failed to locate ffmpeg executable.")
-    elif sys.platform.startswith('linux'):
-        ffmpeg_path = download_ffmpeg_linux()
-    elif sys.platform.startswith('darwin'):  # macOS
-        ffmpeg_path = download_ffmpeg_mac()
-    
-    if not ffmpeg_path:
-        print("Failed to install ffmpeg. Please install it manually.")
-    else:
-        print("ffmpeg installed successfully.")
+    main()
